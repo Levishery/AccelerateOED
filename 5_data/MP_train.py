@@ -63,17 +63,23 @@ def getArg():
                         help='pretrained model')
     parser.add_argument('--save_model', default='MP_Graph.pth',
                         help='file name to save the model')
+    parser.add_argument('--data_path', default='',
+                        help='')
+    parser.add_argument('--EPOCH', default=200,
+                        help='EPOCH to train')
+    parser.add_argument('--test_only', action='store_true',
+                        help='output test result only')
     args = parser.parse_args()
     return args
 
 
-def loadData():
+def loadData(test_only, data_path):
     print('Preparing data...')
     # fileObject = open('data_5_oscillators_45000.json', 'r')
-    if os.path.exists('GraphDataSet.pth'):
-        data_list = torch.load('GraphDataSet.pth')
+    if 'Graph' in data_path:
+        data_list = torch.load(data_path)
     else:
-        dataSet = torch.load('TensorDataSet.pth')
+        dataSet = torch.load(data_path)
         data_w = dataSet['w']
         data_a_upper = dataSet['data_a_upper']
         data_a_lower = dataSet['data_a_lower']
@@ -91,7 +97,7 @@ def loadData():
             data = Data(x=x, edge_index=edge_index, edge_attr=edge_attr.t(), y=y)
             data_list.append(data)
 
-        torch.save(data_list, 'GraphDataSet.pth')
+        torch.save(data_list, data_path.replace('Tensor', 'Graph'))
     # data.x: Node feature matrix with shape[num_nodes, num_node_features]
     #
     # data.edge_index: Graph connectivity in COO format with shape[2, num_edges] and type torch.long
@@ -105,11 +111,16 @@ def loadData():
     std = np.asarray([d.y for d in data_list]).std()
     for d in data_list:
         d.y = (d.y - mean) / std
-
-    data_train = data_list[0:int(0.96 * len(data_list))]
-    data_test = data_list[int(0.96 * len(data_list)):len(data_list)]
-    train_loader = DataLoader(data_train, batch_size=128, shuffle=True)
-    test_loader = DataLoader(data_test, batch_size=128, shuffle=False)
+    if test_only:
+        data_train = []
+        data_test = data_list[0:len(data_list)]
+        train_loader = []
+        test_loader = DataLoader(data_test, batch_size=128, shuffle=False)
+    else:
+        data_train = data_list[0:int(0.96 * len(data_list))]
+        data_test = data_list[int(0.96 * len(data_list)):len(data_list)]
+        train_loader = DataLoader(data_train, batch_size=128, shuffle=True)
+        test_loader = DataLoader(data_test, batch_size=128, shuffle=False)
 
     return train_loader, test_loader, [std, mean]
 
@@ -157,10 +168,10 @@ def savePrediction(data, prediction, std, mean):
 def main():
 
     args = getArg()
-    EPOCH = 200
+    EPOCH = args.EPOCH if not args.test_only else 1
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    train_loader, test_loader, [std, mean] = loadData()
+    train_loader, test_loader, [std, mean] = loadData(args.test_only, args.data_path)
 
     print('Making Model...')
     model = Net().cuda()
@@ -174,21 +185,22 @@ def main():
     train_MSE = np.zeros(EPOCH)
     # start training
     for epoch in range(EPOCH):
-        train_MSE_step = []
-        model.train()
-        for data in train_loader:  # for each training step
-            # train
-            lr = scheduler.optimizer.param_groups[0]['lr']
-            data = data.to(device)
-            optimizer.zero_grad()
-            prediction = model(data).unsqueeze(dim=1)  # [batch_size, 1]
-            loss = F.mse_loss(prediction, data.y)
-            loss.backward()  # backpropagation, compute gradients
-            optimizer.step()  # apply gradients
-            train_MSE_step.append(loss.item() * std * std)
+        if not args.test_only:
+            train_MSE_step = []
+            model.train()
+            for data in train_loader:  # for each training step
+                # train
+                lr = scheduler.optimizer.param_groups[0]['lr']
+                data = data.to(device)
+                optimizer.zero_grad()
+                prediction = model(data).unsqueeze(dim=1)  # [batch_size, 1]
+                loss = F.mse_loss(prediction, data.y)
+                loss.backward()  # backpropagation, compute gradients
+                optimizer.step()  # apply gradients
+                train_MSE_step.append(loss.item() * std * std)
 
-        train_MSE[epoch] = (sum(train_MSE_step) / len(train_MSE_step))
-        print('epoch %d learning rate %f training MSE loss: %f' % (epoch, lr, train_MSE[epoch]))
+            train_MSE[epoch] = (sum(train_MSE_step) / len(train_MSE_step))
+            print('epoch %d learning rate %f training MSE loss: %f' % (epoch, lr, train_MSE[epoch]))
 
         # test
         model.eval()

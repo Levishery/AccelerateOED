@@ -156,9 +156,6 @@ for i in range(N):
         a_lower_bound_update = a_lower_bound.copy()
         a_upper_bound_update = a_upper_bound.copy()
 
-        a_upper_bound_update[i, j] = f_inv
-        a_upper_bound_update[j, i] = f_inv
-
         a_upper_bound_update[i, j] = min(f_inv, a_upper_bound_update[i, j])
         a_upper_bound_update[j, i] = min(f_inv, a_upper_bound_update[i, j])
 
@@ -190,22 +187,7 @@ Entropy_seq = np.zeros(update_cnt + 1)
 Rand_seq = np.zeros(update_cnt + 1)
 R_copy = np.zeros((N, N))
 R_copy = R.copy()
-"""
-R_copy = R.copy()
-init_MOCU_val = MOCU(K_max, w, N, h , M, T, a_lower_bound_update, a_upper_bound_update)
-MOCU_seq = find_MOCU_seq(R_copy, save_f_inv, D_save,
-                                  K_max, w, N, h , M, T, a_lower_bound_update, a_upper_bound_update, it_idx, update_cnt)
-a_lower_bound_update = a_lower_bound.copy()
-a_upper_bound_update = a_upper_bound.copy()
-R_copy = R.copy()
-Entropy_seq = find_Entropy_seq(R_copy, save_f_inv, D_save,
-                                  K_max, w, N, h , M, T, a_lower_bound_update, a_upper_bound_update, it_idx, update_cnt)
-a_lower_bound_update = a_lower_bound.copy()
-a_upper_bound_update = a_upper_bound.copy()
-R_copy = R.copy()
-Rand_seq = find_Rand_seq(R_copy, save_f_inv, D_save,
-                                  K_max, w, N, h , M, T, a_lower_bound_update, a_upper_bound_update, it_idx, update_cnt)
-"""
+
 init_MOCU_val = MOCU(K_max, w, N, h, M, T, a_lower_bound_update, a_upper_bound_update)
 MOCU_seq = find_MOCU_seq(R_copy, save_f_inv, D_save, init_MOCU_val,
                          K_max, w, N, h, M, T, a_lower_bound_update, a_upper_bound_update, it_idx, update_cnt)
@@ -222,18 +204,35 @@ R_copy = R.copy()
 Rand_seq = find_Rand_seq(R_copy, save_f_inv, D_save, init_MOCU_val,
                          K_max, w, N, h, M, T, a_lower_bound_update, a_upper_bound_update, it_idx, update_cnt)
 
+a_lower_bound_update = a_lower_bound.copy()
+a_upper_bound_update = a_upper_bound.copy()
+R_copy = R.copy()
+reuse = 1
+MP1_seq = find_MP_seq(reuse, save_f_inv, D_save, init_MOCU_val,
+                         K_max, w, N, h, M, T, a_lower_bound_update, a_upper_bound_update, it_idx, update_cnt)
+
+a_lower_bound_update = a_lower_bound.copy()
+a_upper_bound_update = a_upper_bound.copy()
+R_copy = R.copy()
+reuse = 0
+MP2_seq = find_MP_seq(reuse, save_f_inv, D_save, init_MOCU_val,
+                         K_max, w, N, h, M, T, a_lower_bound_update, a_upper_bound_update, it_idx, update_cnt)
+
 print("MOCU", MOCU_seq)
+print("MP_reuse", MP1_seq)
+print("MP_nonreuse", MP2_seq)
 print("Rand", Rand_seq)
 print("Entropy", Entropy_seq)
 
 print("time: ", time.time() - tt)
 
 x_ax = np.arange(0, update_cnt + 1, 1)
-plt.plot(x_ax, MOCU_seq, 'ro-', x_ax, Rand_seq, 'bs-', x_ax, Entropy_seq, 'g^-')
+plt.plot(x_ax, MOCU_seq, 'ro-', x_ax, Rand_seq, 'bs-', x_ax, Entropy_seq, 'g^-',
+         x_ax, MP1_seq, 'co-', x_ax, MP2_seq, 'mo-')
 plt.xticks(np.arange(0, update_cnt + 1, 1))
 plt.xlabel('Number of updates')
 plt.ylabel('MOCU')
-plt.legend(['MOCU based', 'random', 'entropy based'])
+plt.legend(['MOCU based', 'random', 'entropy based', 'MP_reuse', 'MP_nonreuse'])
 plt.title('Experimental design for N=5 oscillators')
 plt.grid(True)
 plt.savefig("fig.eps")

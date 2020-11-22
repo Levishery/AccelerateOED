@@ -24,8 +24,8 @@ tt = time.time()
 it_idx = 1
 update_cnt = 10
 # Number of equations
-N = 5
-# N = 9
+# N = 5
+N = 9
 K_max = 20000  # 5000
 
 # Final Time
@@ -57,9 +57,9 @@ for s in range(step):
     uncertainty = 0.3 * random.random()
     for i in range(N):
         if random.random() < 0.5:
-            mul_ = 0.6
+            mul_ = 0.25
         else:
-            mul_ = 1.1
+            mul_ = 0.8
         for j in range(i + 1, N):
             # if random.random() < 0.5:
             #     mul_ = 0.6
