@@ -6,6 +6,8 @@ from torch.nn import Sequential, Linear, ReLU, GRU
 from torch_geometric.nn import NNConv, Set2Set
 import torch.nn.functional as F
 from torch_geometric.data import Data, DataLoader
+from multiprocessing import Process
+import torch.multiprocessing as mp
 
 
 def getEdgeAtt(attr1, attr2, N):
@@ -24,9 +26,9 @@ def pre2R(attr, P_list, N):
     Matrix = np.zeros((N, N))
     k = 0
     for i in range(N):
-        for j in range(i+1, N):
-            Matrix[i, j] = attr[2*k]*P_list[k] + attr[2*k+1]*(1-P_list[k])
-            k = k+1
+        for j in range(i + 1, N):
+            Matrix[i, j] = attr[2 * k] * P_list[k] + attr[2 * k + 1] * (1 - P_list[k])
+            k = k + 1
     return Matrix
 
 
@@ -59,16 +61,15 @@ class Net(torch.nn.Module):
         return out.view(-1)
 
 
-def findMPSequence(syncThresholds, isSynchronized, MOCUInitial, K_max, w, N, h, MVirtual, MReal, TVirtual, TReal,
-                     aLowerBoundIn, aUpperBoundIn, it_idx, update_cnt, iterative=True):
-
+def getMPSequence(gpu, q, syncThresholds, isSynchronized, w, N, aLowerBoundIn, aUpperBoundIn,
+                  update_cnt, optimalExperiments, update_bond, iterative=True):
     # load model
     print('loading model')
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model = Net().cuda()
+    device = torch.device("cuda:" + str(gpu))
+    torch.cuda.set_device(gpu)
+    model = Net().cuda(gpu)
     model.load_state_dict(torch.load('../model/MP_9and5_400.pth'))
     model.eval()
-    # A = torch.zeros((10, 10), device="cuda:1")
     statistics = torch.load('../model/statistics_9and5_400.pth')
     mean = statistics['mean']
     std = statistics['std']
@@ -79,17 +80,12 @@ def findMPSequence(syncThresholds, isSynchronized, MOCUInitial, K_max, w, N, h, 
     x = x.unsqueeze(dim=1)
     y = 0
 
-    MOCUCurve = np.ones(update_cnt + 1) * 50.0
-    MOCUCurve[0] = MOCUInitial
-    timeComplexity = np.ones(update_cnt)
-
     aUpperBoundUpdated = aUpperBoundIn.copy()
     aLowerBoundUpdated = aLowerBoundIn.copy()
 
-    optimalExperiments = []
     isInitiallyComputed = False
     R = np.zeros((N, N))
-    R_ = np.zeros((N, N))
+
     for iteration in range(1, update_cnt + 1):
         iterationStartTime = time.time()
         if (not isInitiallyComputed) or iterative:
@@ -107,20 +103,12 @@ def findMPSequence(syncThresholds, isSynchronized, MOCUInitial, K_max, w, N, h, 
                     w_j = w[j]
                     f_inv = 0.5 * np.abs(w_i - w_j)
 
-                    aLower[j, i] = max(f_inv, aLower[i, j])
-                    aLower[i, j] = aLower[j, i]
-
                     a_tilde = min(max(f_inv, aLowerBoundUpdated[i, j]), aUpperBoundUpdated[i, j])
+                    aLower[j, i] = a_tilde
+                    aLower[i, j] = aLower[j, i]
                     P_syn = (aUpperBoundUpdated[i, j] - a_tilde) / (
-                                aUpperBoundUpdated[i, j] - aLowerBoundUpdated[i, j])
+                            aUpperBoundUpdated[i, j] - aLowerBoundUpdated[i, j])
                     P_syn_list.append(P_syn)
-
-                    # ##
-                    # it_temp_val = np.zeros(it_idx)
-                    # for l in range(it_idx):
-                    #     it_temp_val[l] = MOCU(K_max, w, N, h , MVirtual, T, aLower, aUpper, 0)
-                    # MOCU_matrix_syn = np.mean(it_temp_val)
-                    # ##
 
                     edge_attr = getEdgeAtt(torch.from_numpy(aLower.astype(np.float32)),
                                            torch.from_numpy(aUpper.astype(np.float32)), N)
@@ -130,27 +118,14 @@ def findMPSequence(syncThresholds, isSynchronized, MOCUInitial, K_max, w, N, h, 
                     aUpper = aUpperBoundUpdated.copy()
                     aLower = aLowerBoundUpdated.copy()
 
-                    aUpper[i, j] = min(f_inv, aUpper[i, j])
+                    aUpper[i, j] = a_tilde
                     aUpper[j, i] = aUpper[j, i]
-                    it_temp_val = np.zeros(it_idx)
-
-                    # ##
-                    # for l in range(it_idx):
-                    #     it_temp_val[l] = MOCU(K_max, w, N, h , MVirtual, T, aLower, aUpper, 0)
-                    # MOCU_matrix_nonsyn = np.mean(it_temp_val)
-                    # R_[i, j] = P_syn*MOCU_matrix_syn + (1-P_syn)*MOCU_matrix_nonsyn
-                    # ##
 
                     edge_attr = getEdgeAtt(torch.from_numpy(aLower.astype(np.float32)),
                                            torch.from_numpy(aUpper.astype(np.float32)), N)
                     data = Data(x=x, edge_index=edge_index, edge_attr=edge_attr.t(), y=y)
                     data_list.append(data)
-                else:
-                    #
-                    edge_attr = getEdgeAtt(torch.from_numpy(aLower.astype(np.float32)),
-                                           torch.from_numpy(aUpper.astype(np.float32)), N)
-                    data = Data(x=x, edge_index=edge_index, edge_attr=edge_attr.t(), y=y)
-                    data_list.append(data)
+
             data = DataLoader(data_list, batch_size=128, shuffle=False)
             for d in data:
                 d.to(device)
@@ -163,7 +138,6 @@ def findMPSequence(syncThresholds, isSynchronized, MOCUInitial, K_max, w, N, h, 
                     if (i, j) in optimalExperiments:
                         R[i, j] = 0
             print(R)
-            # print(R_)
 
         min_ind = np.where(R == np.min(R[np.nonzero(R)]))
 
@@ -175,7 +149,6 @@ def findMPSequence(syncThresholds, isSynchronized, MOCUInitial, K_max, w, N, h, 
             min_j_MOCU = int(min_ind[1][0])
 
         iterationTime = time.time() - iterationStartTime
-        timeComplexity[iteration - 1] = iterationTime
 
         optimalExperiments.append((min_i_MOCU, min_j_MOCU))
         # print("selected experiment: ", min_i_MOCU, min_j_MOCU, "R: ", R[min_i_MOCU, min_j_MOCU])
@@ -192,16 +165,33 @@ def findMPSequence(syncThresholds, isSynchronized, MOCUInitial, K_max, w, N, h, 
                 = max(aLowerBoundUpdated[min_i_MOCU, min_j_MOCU], f_inv)
             aLowerBoundUpdated[min_j_MOCU, min_i_MOCU] \
                 = max(aLowerBoundUpdated[min_i_MOCU, min_j_MOCU], f_inv)
+        update_bond.append((aLowerBoundUpdated[min_i_MOCU, min_j_MOCU], aUpperBoundUpdated[min_j_MOCU, min_i_MOCU]))
 
         print("Iteration: ", iteration, ", selected: (", min_i_MOCU, min_j_MOCU, ")", iterationTime, "seconds")
+    q.put([optimalExperiments, update_bond])
+
+def findMPSequence(optimalExperiments, update_bond, MOCUInitial, K_max, w, N, h, MVirtual, MReal, TVirtual, TReal,
+                   aLowerBoundIn, aUpperBoundIn, it_idx, update_cnt):
+
+    MOCUCurve = np.ones(update_cnt+1)*50.0
+    MOCUCurve[0] = MOCUInitial
+    aUpperBoundUpdated = aUpperBoundIn.copy()
+    aLowerBoundUpdated = aLowerBoundIn.copy()
+
+    for iteration in range(1, update_cnt + 1):
+        min_i_MOCU, min_j_MOCU = optimalExperiments[iteration-1]
+        aLowerBoundUpdated[min_i_MOCU, min_j_MOCU], aUpperBoundUpdated[min_i_MOCU, min_j_MOCU] = update_bond[iteration-1]
+        aLowerBoundUpdated[min_j_MOCU, min_i_MOCU], aUpperBoundUpdated[min_i_MOCU, min_j_MOCU] = update_bond[
+            iteration - 1]
         it_temp_val = np.zeros(it_idx)
-        # for l in range(it_idx):
-        #     it_temp_val[l] = MOCU(K_max, w, N, h, MReal, Torch, aLowerBoundUpdated, aUpperBoundUpdated, 0)
-        # MOCUCurve[iteration] = np.mean(it_temp_val)
-        print("before adjusting")
-        print(MOCUCurve[iteration])
+        for l in range(it_idx):
+            it_temp_val[l] = MOCU(K_max, w, N, h, MReal, TReal, aLowerBoundUpdated, aUpperBoundUpdated, 0)
+        MOCUCurve[iteration] = np.mean(it_temp_val)
+        # print(MOCUCurve[iteration])
         if MOCUCurve[iteration] > MOCUCurve[iteration - 1]:
             MOCUCurve[iteration] = MOCUCurve[iteration - 1]
-        print("The end of iteration: actual MOCU", MOCUCurve[iteration])
+
     print(optimalExperiments)
+    print(MOCUCurve)
+    timeComplexity = 0
     return MOCUCurve, optimalExperiments, timeComplexity

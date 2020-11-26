@@ -317,16 +317,16 @@ def MOCU(K_max, w, N, h , M, T, aLowerBoundIn, aUpperBoundIn, seed):
         rand_data = np.random.random(int((N-1)*N/2.0*K_max)).astype(np.float64)
     else:
         rand_data = np.random.RandomState(int(seed)).uniform(size = int((N-1)*N/2.0*K_max))
-    if T == 1:
-        task(Holder(torch.from_numpy(a).cuda()), Holder(torch.from_numpy(rand_data).cuda()),
-             Holder(torch.from_numpy(a_save).cuda()), Holder(torch.from_numpy(w).cuda()),
-            np.float64(h), np.intc(N), np.intc(M), Holder(torch.from_numpy(vec_a_lower).cuda()),
-            Holder(torch.from_numpy(vec_a_upper).cuda()), grid=(blocks,1), block=(block_size,1,1))
-        a_save = a_save.cpu().numpy()
-    else:
-        task(drv.In(a), drv.In(rand_data), drv.Out(a_save), drv.In(w),
-             np.float64(h), np.intc(N), np.intc(M), drv.In(vec_a_lower),
-             drv.In(vec_a_upper), grid=(blocks, 1), block=(block_size, 1, 1))
+    # if T == 1:
+    #     task(Holder(torch.from_numpy(a).cuda()), Holder(torch.from_numpy(rand_data).cuda()),
+    #          Holder(torch.from_numpy(a_save).cuda()), Holder(torch.from_numpy(w).cuda()),
+    #         np.float64(h), np.intc(N), np.intc(M), Holder(torch.from_numpy(vec_a_lower).cuda()),
+    #         Holder(torch.from_numpy(vec_a_upper).cuda()), grid=(blocks,1), block=(block_size,1,1))
+    #     a_save = a_save.cpu().numpy()
+    # else:
+    task(drv.In(a), drv.In(rand_data), drv.Out(a_save), drv.In(w),
+         np.float64(h), np.intc(N), np.intc(M), drv.In(vec_a_lower),
+         drv.In(vec_a_upper), grid=(blocks, 1), block=(block_size, 1, 1))
 
 
     if min(a_save) == 0:
