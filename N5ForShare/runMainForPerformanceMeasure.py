@@ -4,18 +4,13 @@
 # In addition, please do not forget update "manually" the followings in the MOCU.py file
 # #define N_global 10. This is much faster than passing the params in pyCUDA.
 
-import os
-if os.system("cl.exe"):
-    os.environ['PATH'] += ';'+r"C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.26.28801\bin\HostX64\x64"
-if os.system("cl.exe"):
-    raise RuntimeError("cl.exe still not found, path probably incorrect")
-
 import sys
 import time
 
 sys.path.append("./src")
 
 from findMOCUSequence import *
+from findMPSequence import *
 from findEntropySequence  import *
 from findRandomSequence import *
 from determineSyncTwo import *
@@ -44,7 +39,7 @@ w[2] = 1.1667
 w[3] = 2.0000
 w[4] = 5.8333
 
-listMethods = ['RANDOM', 'ENTROPY', 'iODE', 'ODE']
+listMethods = ['iMP', 'MP', 'iODE', 'ODE', 'RANDOM', 'ENTROPY']
 numberOfSimulationsPerMethod = 1
 numberOfVaildSimulations = 0
 numberOfSimulations = 0
@@ -127,6 +122,7 @@ while (numberOfSimulationsPerMethod > numberOfVaildSimulations):
             syncThreshold = 0.5*np.abs(w_i - w_j)
             criticalK[i, j] = syncThreshold
             criticalK[j, i] = syncThreshold
+            criticalK[j, i] = syncThreshold
             isSynchronized[i,j] = determineSyncTwo(w_i, w_j, deltaT, 2, MReal, a_ij)
 
     # print("criticalK")
@@ -148,18 +144,30 @@ while (numberOfSimulationsPerMethod > numberOfVaildSimulations):
         print("Round: ", numberOfVaildSimulations, "/", numberOfSimulationsPerMethod, "-", listMethods[indexMethod], "Iteration: ", numberOfVaildSimulations, " Initial MOCU: ", MOCUInitial, " Computation time: ", time.time() - timeMOCU)
         aUpperUpdated = aInitialUpper.copy()
         aLowerUpdated = aInitialLower.copy()
+
         if listMethods[indexMethod] == 'RANDOM':
             MOCUCurve, experimentSequence, timeComplexity = findRandomSequence(criticalK, isSynchronized, MOCUInitial, K_max, w, N, deltaT, MReal, TReal, aLowerUpdated, aUpperUpdated, it_idx, update_cnt)
+
         elif listMethods[indexMethod] == 'ENTROPY':
             MOCUCurve, experimentSequence, timeComplexity = findEntropySequence(criticalK, isSynchronized, MOCUInitial, K_max, w, N, deltaT, MReal, TReal, aLowerUpdated, aUpperUpdated, it_idx, update_cnt)
+
+        elif listMethods[indexMethod] == 'iODE':
+            iterative = True
+            print("iterative: ", iterative)
+            MOCUCurve, experimentSequence, timeComplexity = findMOCUSequence(criticalK, isSynchronized, MOCUInitial, K_max, w, N, deltaT, MVirtual, MReal, TVirtual, TReal, aLowerUpdated, aUpperUpdated, it_idx, update_cnt, iterative = iterative)
+
+        elif listMethods[indexMethod] == 'ODE':
+            iterative = False
+            print("iterative: ", iterative)
+            MOCUCurve, experimentSequence, timeComplexity = findMOCUSequence(criticalK, isSynchronized, MOCUInitial, K_max, w, N, deltaT, MVirtual, MReal, TVirtual, TReal, aLowerUpdated, aUpperUpdated, it_idx, update_cnt, iterative = iterative)
+
         else:
-            if listMethods[indexMethod] == 'iODE':
+            if listMethods[indexMethod] == 'iMP':
                 iterative = True
             else:
                 iterative = False
             print("iterative: ", iterative)
-            MOCUCurve, experimentSequence, timeComplexity = findMOCUSequence(criticalK, isSynchronized, MOCUInitial, K_max, w, N, deltaT, MVirtual, MReal, TVirtual, TReal, aLowerUpdated, aUpperUpdated, it_idx, update_cnt, iterative = iterative)
-        
+            MOCUCurve, experimentSequence, timeComplexity = findMPSequence(criticalK, isSynchronized, MOCUInitial, K_max, w, N, deltaT, MVirtual, MReal, TVirtual, TReal, aLowerUpdated, aUpperUpdated, it_idx, update_cnt, iterative = iterative)
         outMOCUFile = open('./results/' + listMethods[indexMethod] + '_MOCU.txt', 'a')
         outTimeFile = open('./results/' + listMethods[indexMethod] + '_timeComplexity.txt', 'a')
         outSequenceFile = open('./results/' + listMethods[indexMethod] + '_sequence.txt', 'a')

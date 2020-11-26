@@ -31,11 +31,8 @@ def findMOCUSequence(syncThresholds, isSynchronized, MOCUInitial, K_max, w, N, h
                         w_j = w[j]
                         f_inv = 0.5*np.abs(w_i - w_j)
 
-                        aLower[i,j] = f_inv
-                        aLower[j,i] = f_inv
-
-                        aLower[j,i] = max(f_inv, aLower[i,j])
-                        aLower[j,i] = max(f_inv, aLower[i,j])
+                        aLower[j, i] = max(f_inv, aLower[i,j])
+                        aLower[i, j] = max(f_inv, aLower[i,j])
 
                         a_tilde = min(max(f_inv, aLowerBoundUpdated[i, j]), aUpperBoundUpdated[i, j])
                         P_syn = (aUpperBoundUpdated[i, j] - a_tilde)/(aUpperBoundUpdated[i, j] - aLowerBoundUpdated[i, j])
@@ -48,9 +45,6 @@ def findMOCUSequence(syncThresholds, isSynchronized, MOCUInitial, K_max, w, N, h
 
                         aUpper = aUpperBoundUpdated.copy()
                         aLower = aLowerBoundUpdated.copy()
-
-                        aUpper[i,j] = f_inv
-                        aUpper[j,i] = f_inv
 
                         aUpper[i, j] = min(f_inv, aUpper[i, j])
                         aUpper[j, i] = min(f_inv, aUpper[i, j])
@@ -100,22 +94,7 @@ def findMOCUSequence(syncThresholds, isSynchronized, MOCUInitial, K_max, w, N, h
                 = max(aLowerBoundUpdated[min_i_MOCU, min_j_MOCU], f_inv)
 
         print("Iteration: ", iteration, ", selected: (", min_i_MOCU, min_j_MOCU, ")", iterationTime, "seconds")
-        # print("aUpperBoundUpdated")
-        # print(aUpperBoundUpdated)
-        # print("aLowerBoundUpdated")
-        # print(aLowerBoundUpdated)
 
-        # cnt = 0
-        # while MOCUCurve[iteration] > MOCUCurve[iteration - 1]:
-        #     if cnt == 5:
-        #         MOCUCurve[iteration] = MOCUCurve[iteration - 1]
-        #         break
-
-        #     it_temp_val = np.zeros(it_idx)
-        #     for l in range(it_idx):
-        #         it_temp_val[l] = MOCU(K_max, w, N, h , MReal, TReal, aLowerBoundUpdated, aUpperBoundUpdated, ((iteration * N * N * N) * cnt + l))
-        #     MOCUCurve[iteration] = np.mean(it_temp_val)
-        #     cnt = cnt + 1
         it_temp_val = np.zeros(it_idx)
         for l in range(it_idx):
             # it_temp_val[l] = MOCU(K_max, w, N, h , MReal, TReal, aLowerBoundUpdated, aUpperBoundUpdated, ((iteration * N * N * N) + l))

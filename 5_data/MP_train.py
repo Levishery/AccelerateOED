@@ -3,7 +3,6 @@ from torch_geometric.data import Data
 
 import torch
 import torch.nn.functional as F
-import torch.utils.data as Data
 from torch.nn import Sequential, Linear, ReLU, GRU
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -69,11 +68,13 @@ def getArg():
                         help='EPOCH to train')
     parser.add_argument('--test_only', action='store_true',
                         help='output test result only')
+    parser.add_argument('--debug', action='store_true',
+                        help='print debug information')
     args = parser.parse_args()
     return args
 
 
-def loadData(test_only, data_path):
+def loadData(test_only, data_path, pretrain):
     print('Preparing data...')
     # fileObject = open('data_5_oscillators_45000.json', 'r')
     if 'Graph' in data_path:
@@ -107,16 +108,21 @@ def loadData(test_only, data_path):
     # data.y: Target to train against(may have arbitrary shape), e.g., node - level targets of shape[num_nodes, *]
     # or graph - level targets of shape[1, *]
     # Normalize targets to mean = 0 and std = 1.
-    mean = np.asarray([d.y for d in data_list]).mean()
-    std = np.asarray([d.y for d in data_list]).std()
-    for d in data_list:
-        d.y = (d.y - mean) / std
     if test_only:
-        data_train = []
+        statistics = torch.load(pretrain.replace('MP', 'statistics'))
+        mean = statistics['mean']
+        std = statistics['std']
+        for d in data_list:
+            d.y = (d.y - mean) / std
         data_test = data_list[0:len(data_list)]
+        # data_test = [d for d in data_list if d.num_nodes == 5]
         train_loader = []
         test_loader = DataLoader(data_test, batch_size=128, shuffle=False)
     else:
+        mean = np.asarray([d.y for d in data_list]).mean()
+        std = np.asarray([d.y for d in data_list]).std()
+        for d in data_list:
+            d.y = (d.y - mean) / std
         data_train = data_list[0:int(0.96 * len(data_list))]
         data_test = data_list[int(0.96 * len(data_list)):len(data_list)]
         train_loader = DataLoader(data_train, batch_size=128, shuffle=True)
@@ -165,13 +171,30 @@ def savePrediction(data, prediction, std, mean):
     writer.close()
 
 
+def printInstance(data, prediction, std, mean):
+    result = np.zeros([len(data.y), 2])
+    prediction = prediction * std + mean
+    prediction = prediction.cpu().detach().numpy()
+    result[:, 0] = prediction[0:len(data.y), 0]  # pre
+    result[:, 1] = np.asarray([d * std + mean for d in data.y.cpu()])
+    print('w:')
+    print(data.x[0])
+    print('a_upper:')
+    print(data.edge_attr[0][:, 0])
+    print('a_lower:')
+    print(data.edge_attr[0][:, 1])
+    print('gt:')
+    print(result[0, 1])
+    print('prediction')
+    print(prediction[0])
+
 def main():
 
     args = getArg()
     EPOCH = args.EPOCH if not args.test_only else 1
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    train_loader, test_loader, [std, mean] = loadData(args.test_only, args.data_path)
+    train_loader, test_loader, [std, mean] = loadData(args.test_only, args.data_path, args.pretrain)
 
     print('Making Model...')
     model = Net().cuda()
@@ -211,16 +234,21 @@ def main():
             error += (prediction * std - data.y * std).square().sum().item()  # MSE
         loss = error / len(test_loader.dataset)
         print('epoch %d test MSE: %f' % (epoch, loss))
+        print('std:%f, mean:%f' %(std, mean))
         test_MSE[epoch] = loss
         if epoch > 5 and loss < min(test_MSE[0:epoch]):
             torch.save(model.state_dict(), args.save_model)
 
+    if not args.test_only:
+        torch.save({'mean': mean, 'std': std}, args.save_model.replace('MP', 'statistics'))
     # plot and save
     plotCurves(train_MSE, test_MSE, EPOCH)
 
     # save some prediction result
     savePrediction(data, prediction, std, mean)
 
+    if args.debug:
+        printInstance(data, prediction, std, mean)
 
 if __name__ == '__main__':
     main()

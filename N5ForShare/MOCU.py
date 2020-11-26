@@ -3,6 +3,7 @@ import pycuda.autoinit
 
 import pycuda.driver as drv
 import pandas as pd
+import torch
 import numpy as np
 
 from pycuda.compiler import SourceModule
@@ -286,6 +287,18 @@ __global__ void task(double *a, double *random_data, double *a_save, double *w, 
 
 task = mod.get_function("task")
 
+
+class Holder(pycuda.driver.PointerHolderBase):
+    ## helper for using pytorch and pycuda together
+    def __init__(self, t):
+        super(Holder, self).__init__()
+        self.t = t
+        self.gpudata = t.data_ptr()
+
+    def get_pointer(self):
+        return self.t.data_ptr()
+
+
 def MOCU(K_max, w, N, h , M, T, aLowerBoundIn, aUpperBoundIn, seed):
     # seed = 0
     blocks = 128
@@ -294,9 +307,6 @@ def MOCU(K_max, w, N, h , M, T, aLowerBoundIn, aUpperBoundIn, seed):
     w = np.append(w, np.mean(w))
 
     a_save = np.zeros(K_max).astype(np.float64)
-
-    vec_a_lower = np.zeros(N*N).astype(np.float64)
-    vec_a_upper = np.zeros(N*N).astype(np.float64)
 
     vec_a_lower = np.reshape(aLowerBoundIn.copy(), N*N)
     vec_a_upper = np.reshape(aUpperBoundIn.copy(), N*N)
@@ -307,13 +317,17 @@ def MOCU(K_max, w, N, h , M, T, aLowerBoundIn, aUpperBoundIn, seed):
         rand_data = np.random.random(int((N-1)*N/2.0*K_max)).astype(np.float64)
     else:
         rand_data = np.random.RandomState(int(seed)).uniform(size = int((N-1)*N/2.0*K_max))
+    if T == 1:
+        task(Holder(torch.from_numpy(a).cuda()), Holder(torch.from_numpy(rand_data).cuda()),
+             Holder(torch.from_numpy(a_save).cuda()), Holder(torch.from_numpy(w).cuda()),
+            np.float64(h), np.intc(N), np.intc(M), Holder(torch.from_numpy(vec_a_lower).cuda()),
+            Holder(torch.from_numpy(vec_a_upper).cuda()), grid=(blocks,1), block=(block_size,1,1))
+        a_save = a_save.cpu().numpy()
+    else:
+        task(drv.In(a), drv.In(rand_data), drv.Out(a_save), drv.In(w),
+             np.float64(h), np.intc(N), np.intc(M), drv.In(vec_a_lower),
+             drv.In(vec_a_upper), grid=(blocks, 1), block=(block_size, 1, 1))
 
-    task(drv.In(a), drv.In(rand_data), drv.Out(a_save), drv.In(w), 
-        np.float64(h), np.intc(N), np.intc(M), drv.In(vec_a_lower), 
-        drv.In(vec_a_upper), grid=(blocks,1), block=(block_size,1,1))
-
-    # print("a_save")
-    # print(a_save)
 
     if min(a_save) == 0:
     	print("Non sync case exists")

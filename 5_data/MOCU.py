@@ -17,7 +17,7 @@ mod = SourceModule("""
 // This should be manually changed due to the technical issue in the PyCUDA.
 // Well, yes, I am lazy...
 
-#define N_global 10
+#define N_global 6
 
 __device__ int mocu_comp(double *w, double h, int N, int M, double* a)
 {
