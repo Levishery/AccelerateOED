@@ -12,7 +12,6 @@ import json
 
 import numpy as np
 import random
-import matplotlib.pyplot as plt
 
 print("################################################")
 print("Test code")
@@ -59,7 +58,7 @@ for s in range(step):
         if random.random() < 0.5:
             mul_ = 0.25
         else:
-            mul_ = 0.8
+            mul_ = 1.2
         for j in range(i + 1, N):
             # if random.random() < 0.5:
             #     mul_ = 0.6

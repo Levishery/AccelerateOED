@@ -6,8 +6,6 @@ from torch.nn import Sequential, Linear, ReLU, GRU
 from torch_geometric.nn import NNConv, Set2Set
 import torch.nn.functional as F
 from torch_geometric.data import Data, DataLoader
-from multiprocessing import Process
-import torch.multiprocessing as mp
 
 
 def getEdgeAtt(attr1, attr2, N):
@@ -185,7 +183,7 @@ def findMPSequence(optimalExperiments, update_bond, timeComplexity, MOCUInitial,
     for iteration in range(1, update_cnt + 1):
         min_i_MOCU, min_j_MOCU = optimalExperiments[iteration-1]
         aLowerBoundUpdated[min_i_MOCU, min_j_MOCU], aUpperBoundUpdated[min_i_MOCU, min_j_MOCU] = update_bond[iteration-1]
-        aLowerBoundUpdated[min_j_MOCU, min_i_MOCU], aUpperBoundUpdated[min_j_MOCU, min_i_MOCU] = update_bond[
+        aLowerBoundUpdated[min_j_MOCU, min_i_MOCU], aUpperBoundUpdated[min_i_MOCU, min_j_MOCU] = update_bond[
             iteration - 1]
         it_temp_val = np.zeros(it_idx)
         for l in range(it_idx):

@@ -46,13 +46,13 @@ __device__ int mocu_comp(double *w, double h, int N, int M, double* a)
 
     for (k=0;k<M;k++){
 
-
+        
         for (i=0;i<N;i++){
 
             sum_temp = 0.0;
             for (j=0;j<N;j++){
               sum_temp += a[j*N+i]*sin(theta[j] - theta[i]);
-
+              
             }
             F[i] = w[i] + sum_temp;
         }
@@ -61,8 +61,8 @@ __device__ int mocu_comp(double *w, double h, int N, int M, double* a)
             k1[i] = h*F[i];
             theta[i] = theta_old[i] + k1[i]/2.0;
           }
-
-
+          
+        
 
         for (i=0;i<N;i++){
             sum_temp = 0.0;
@@ -76,7 +76,7 @@ __device__ int mocu_comp(double *w, double h, int N, int M, double* a)
             k2[i] = h*F[i];
             theta[i] = theta_old[i] + k2[i]/2.0;
           }
-
+          
 
         for (i=0;i<N;i++){
             sum_temp = 0.0;
@@ -135,17 +135,17 @@ __device__ int mocu_comp(double *w, double h, int N, int M, double* a)
             }
 
         }
-
+      
         t = t+h;
-
+      
     }
 
-
+    
     tol = max_temp-min_temp;
     if (tol <= 0.001){
         D = 1;
     }
-
+    
     return D;
 }
 
@@ -156,7 +156,7 @@ __global__ void task(double *a, double *random_data, double *a_save, double *w, 
     const int i_c = blockDim.x*blockIdx.x + threadIdx.x;
     int i,j;
     int observeIndex = 10000000000;
-
+    
     double a_new[N_global*N_global];
     for (i=0;i<N_global*N_global;i++){
             a_new[i] = 0.0;
@@ -172,7 +172,7 @@ __global__ void task(double *a, double *random_data, double *a_save, double *w, 
         printf("\\n");
     }
     int rand_ind, cnt0, cnt1;
-
+    
     cnt0 = (i_c*(N-1)*N/2);
     cnt1 = 0;
 
@@ -282,54 +282,52 @@ __global__ void task(double *a, double *random_data, double *a_save, double *w, 
 }
 
 """
-                   )
+)
 
 task = mod.get_function("task")
 
-
-def MOCU(K_max, w, N, h, M, T, aLowerBoundIn, aUpperBoundIn, seed):
+def MOCU(K_max, w, N, h , M, T, aLowerBoundIn, aUpperBoundIn, seed):
     # seed = 0
     blocks = 128
-    block_size = np.int(K_max / blocks)
+    block_size = np.int(K_max/blocks)
 
-    w = np.append(w, 0.5 * np.mean(w))
+    w = np.append(w, 0.5*np.mean(w))
 
     a_save = np.zeros(K_max).astype(np.float64)
 
-    vec_a_lower = np.zeros(N * N).astype(np.float64)
-    vec_a_upper = np.zeros(N * N).astype(np.float64)
+    vec_a_lower = np.zeros(N*N).astype(np.float64)
+    vec_a_upper = np.zeros(N*N).astype(np.float64)
 
-    vec_a_lower = np.reshape(aLowerBoundIn.copy(), N * N)
-    vec_a_upper = np.reshape(aUpperBoundIn.copy(), N * N)
+    vec_a_lower = np.reshape(aLowerBoundIn.copy(), N*N)
+    vec_a_upper = np.reshape(aUpperBoundIn.copy(), N*N)
 
-    a = np.zeros((N + 1) * (N + 1)).astype(np.float64)
+    a = np.zeros((N+1)*(N+1)).astype(np.float64)
 
     if (int(seed) == 0):
-        rand_data = np.random.random(int((N - 1) * N / 2.0 * K_max)).astype(np.float64)
+        rand_data = np.random.random(int((N-1)*N/2.0*K_max)).astype(np.float64)
     else:
-        rand_data = np.random.RandomState(int(seed)).uniform(size=int((N - 1) * N / 2.0 * K_max))
+        rand_data = np.random.RandomState(int(seed)).uniform(size = int((N-1)*N/2.0*K_max))
 
-    task(drv.In(a), drv.In(rand_data), drv.Out(a_save), drv.In(w),
-         np.float64(h), np.intc(N), np.intc(M), drv.In(vec_a_lower),
-         drv.In(vec_a_upper), grid=(blocks, 1), block=(block_size, 1, 1))
+    task(drv.In(a), drv.In(rand_data), drv.Out(a_save), drv.In(w), 
+        np.float64(h), np.intc(N), np.intc(M), drv.In(vec_a_lower), 
+        drv.In(vec_a_upper), grid=(blocks,1), block=(block_size,1,1))
 
     # print("a_save")
     # print(a_save)
 
     if min(a_save) == 0:
-        print("Non sync case exists")
-
-    # if K_max >= 50000:
+    	print("Non sync case exists")
+    
     if K_max >= 1000:
         temp = np.sort(a_save)
-        ll = int(K_max * 0.005)
-        uu = int(K_max * 0.995)
-        a_save = temp[ll - 1:uu]
+        ll = int(K_max*0.005)
+        uu = int(K_max*0.995)
+        a_save = temp[ll-1:uu]
         a_star = max(a_save)
-        MOCU_val = sum(a_star - a_save) / (K_max * 0.99)
+        MOCU_val = sum(a_star - a_save)/(K_max*0.99)
 
     else:
         a_star = max(a_save)
-        MOCU_val = sum(a_star - a_save) / (K_max)
+        MOCU_val = sum(a_star - a_save)/(K_max)
 
     return MOCU_val

@@ -120,7 +120,7 @@ r3 = 3.0
 a_lower_bound_update = a_lower_bound.copy()
 a_upper_bound_update = a_upper_bound.copy()
 
-
+init_MOCU_val = MOCU(K_max, w, N, h , M, T, a_lower_bound_update, a_upper_bound_update)
 for i in range(N):
     for j in range(N):
         if i==2:
