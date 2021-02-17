@@ -81,11 +81,11 @@ if __name__ == '__main__':
     M = int(T / h)
     # get random data
     # N = 5
-    is_ODE = 1
-    N = 5
+    is_ODE = 0
+    N = 7
     up_flag = 0
     down_flag = 0
-    step = 1000
+    step = 5000
     data_ = []
     w = np.zeros(N)
     # load model
@@ -95,7 +95,7 @@ if __name__ == '__main__':
         if N == 5:
             model.load_state_dict(torch.load('../model/MP_9and5_400.pth'))
         else:
-            model.load_state_dict(torch.load('../N7ForShare/MP_Graph_579.pth'))
+            model.load_state_dict(torch.load('../5_data/Constrained_l2_1.pth'))
         model.eval()
 
     for s in tqdm(range(step)):

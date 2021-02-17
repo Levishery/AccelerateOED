@@ -3,18 +3,20 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 
-def plotCurves(train_MSE, test_MSE, EPOCH):
-    exp_MSE = 0.000015794911
+def plotCurves(train_MSE, train_rank, test_MSE, EPOCH, name):
+    exp_MSE = 0.00021
     print(f"best test MSE: {np.min(test_MSE):.12f};   experiment MSE error: 0.000015794911;   data variance: "
           f"0.045936428010")
     exp_MSE = np.full(len(train_MSE), exp_MSE)
-    plt.plot(train_MSE[1:], 'r', label="train")
+    plt.plot(train_MSE[1:], 'r', label="train_MSE")
+    plt.plot(train_rank[1:], 'y', label="train_rank")
     plt.plot(test_MSE[1:], 'b', label="test")
     plt.plot(exp_MSE[1:], '-', label="experiment")
     plt.xlabel('epoch')
     plt.ylabel('Mean Square Error')
     plt.legend()
-    plt.savefig('train_MP.png')
+    name = name.split('.')[0]
+    plt.savefig(name + '.png')
 
     plt.clf()
 
@@ -24,7 +26,7 @@ def plotCurves(train_MSE, test_MSE, EPOCH):
     plt.xlabel('epoch')
     plt.ylabel('Mean Square Error')
     plt.legend()
-    plt.savefig('train_MP2.png')
+    plt.savefig(name + '2.png')
 
 
 def savePrediction(data, prediction, std, mean):

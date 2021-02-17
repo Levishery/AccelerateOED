@@ -143,7 +143,10 @@ if __name__ == '__main__':
 
         for indexMethod in range(len(listMethods)):
             timeMOCU = time.time()
-            MOCUInitial = MOCU(K_max, w, N, deltaT, MReal, TReal, aInitialLower.copy(), aInitialUpper.copy(), 0)
+            it_temp_val = np.zeros(it_idx)
+            for l in range(it_idx):
+                it_temp_val[l] = MOCU(K_max, w, N, deltaT, MReal, TReal, aInitialLower.copy(), aInitialUpper.copy(), 0)
+            MOCUInitial = np.mean(it_temp_val)
             print("Round: ", numberOfVaildSimulations, "/", numberOfSimulationsPerMethod, "-", listMethods[indexMethod],
                   "Iteration: ", numberOfVaildSimulations, " Initial MOCU: ", MOCUInitial, " Computation time: ",
                   time.time() - timeMOCU)

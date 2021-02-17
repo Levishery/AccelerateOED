@@ -5,6 +5,7 @@ from torch.nn import Sequential, Linear, ReLU, GRU
 from torch_geometric.nn import NNConv, Set2Set
 from torch_geometric.data import Data, DataLoader
 import numpy as np
+import copy
 
 import argparse
 
@@ -52,6 +53,19 @@ def getEdgeAtt(attr1, attr2):
     return edge_attr
 
 
+def computeRankLoss(prediction, edge_attr, use_l2 = True):
+    grads = torch.autograd.grad(outputs=prediction, inputs=edge_attr,
+                                      grad_outputs=torch.ones(prediction.size()).cuda(), create_graph=True)
+    grads = grads[0]
+    lower_grads = F.relu(grads[:, 0])
+    upper_grads = F.relu(-1*grads[:, 1])
+    if use_l2:
+        rank_loss = lower_grads.square().sum() + upper_grads.square().sum()
+    else:
+        rank_loss = lower_grads.sum() + upper_grads.sum()
+    return rank_loss
+
+
 def getArg():
     parser = argparse.ArgumentParser(description='Message Passing for MOCU Prediction')
     parser.add_argument('--pretrain', default='.',
@@ -60,12 +74,14 @@ def getArg():
                         help='file name to save the model')
     parser.add_argument('--data_path', default='',
                         help='')
-    parser.add_argument('--EPOCH', default=200,
+    parser.add_argument('--EPOCH', default=200, type=int,
                         help='EPOCH to train')
     parser.add_argument('--test_only', action='store_true',
                         help='output test result only')
     parser.add_argument('--debug', action='store_true',
                         help='print debug information')
+    parser.add_argument('--Constrain_weight', default=0.001, type=float,
+                        help='rank loss weight')
     args = parser.parse_args()
     return args
 
@@ -128,7 +144,6 @@ def loadData(test_only, data_path, pretrain):
 
 
 def main():
-
     args = getArg()
     EPOCH = args.EPOCH if not args.test_only else 1
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -136,58 +151,69 @@ def main():
     train_loader, test_loader, [std, mean] = loadData(args.test_only, args.data_path, args.pretrain)
 
     print('Making Model...')
-    model = Net().cuda()
-    if args.pretrain != '.':
-        model.load_state_dict(torch.load(args.pretrain))
+    with torch.backends.cudnn.flags(enabled=False):
+        model = Net().cuda()
+        if args.pretrain != '.':
+            model.load_state_dict(torch.load(args.pretrain))
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min',
-                                                           factor=0.7, patience=5, min_lr=0.00001)
-    test_MSE = np.zeros(EPOCH)
-    train_MSE = np.zeros(EPOCH)
-    # start training
-    for epoch in range(EPOCH):
-        if not args.test_only:
-            train_MSE_step = []
-            model.train()
-            for data in train_loader:  # for each training step
-                # train
-                lr = scheduler.optimizer.param_groups[0]['lr']
+        optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min',
+                                                               factor=0.7, patience=5, min_lr=0.00001)
+        test_MSE = np.zeros(EPOCH)
+        train_MSE = np.zeros(EPOCH)
+        train_rank = np.zeros(EPOCH)
+        # start training
+        for epoch in range(EPOCH):
+            if not args.test_only:
+                train_MSE_step = []
+                train_rank_step = []
+                model.train()
+                for data in train_loader:  # for each training step
+                    # train
+                    data_ = copy.deepcopy(data)
+                    data_.edge_attr.requires_grad = True
+                    lr = scheduler.optimizer.param_groups[0]['lr']
+                    data_ = data_.to(device)
+                    optimizer.zero_grad()
+                    prediction = model(data_).unsqueeze(dim=1)  # [batch_size, 1]
+                    mseLoss = F.mse_loss(prediction, data_.y)
+                    rankLoss = args.Constrain_weight*computeRankLoss(prediction, data_.edge_attr)
+                    loss = mseLoss + rankLoss
+                    loss.backward()  # backpropagation, compute gradients
+                    optimizer.step()  # apply gradients
+                    train_MSE_step.append(mseLoss.item() * std * std)
+                    train_rank_step.append(rankLoss.item() * std * std)
+
+                train_MSE[epoch] = (sum(train_MSE_step) / len(train_MSE_step))
+                train_rank[epoch] = (sum(train_rank_step) / len(train_rank_step))
+                print('epoch %d learning rate %f training MSE loss: %f' % (epoch, lr, train_MSE[epoch]))
+                print('epoch %d learning rate %f training rank loss: %f' % (epoch, lr, train_rank[epoch]))
+
+            # test
+            model.eval()
+            error = 0
+            for data in test_loader:
                 data = data.to(device)
-                optimizer.zero_grad()
-                prediction = model(data).unsqueeze(dim=1)  # [batch_size, 1]
-                loss = F.mse_loss(prediction, data.y)
-                loss.backward()  # backpropagation, compute gradients
-                optimizer.step()  # apply gradients
-                train_MSE_step.append(loss.item() * std * std)
-
-            train_MSE[epoch] = (sum(train_MSE_step) / len(train_MSE_step))
-            print('epoch %d learning rate %f training MSE loss: %f' % (epoch, lr, train_MSE[epoch]))
-
-        # test
-        model.eval()
-        error = 0
-        for data in test_loader:
-            data = data.to(device)
-            prediction = model(data).unsqueeze(dim=1)
-            error += (prediction * std - data.y * std).square().sum().item()  # MSE
-        loss = error / len(test_loader.dataset)
-        print('epoch %d test MSE: %f' % (epoch, loss))
-        print('std:%f, mean:%f' %(std, mean))
-        test_MSE[epoch] = loss
-        if epoch > 5 and loss < min(test_MSE[0:epoch]):
-            torch.save(model.state_dict(), args.save_model)
+                prediction = model(data).unsqueeze(dim=1)
+                error += (prediction * std - data.y * std).square().sum().item()  # MSE
+            loss = error / len(test_loader.dataset)
+            print('epoch %d test MSE: %f' % (epoch, loss))
+            # print('std:%f, mean:%f' % (std, mean))
+            test_MSE[epoch] = loss
+            if epoch > 5 and loss < min(test_MSE[0:epoch]):
+                torch.save(model.state_dict(), args.save_model)
 
     if not args.test_only:
-        torch.save({'mean': mean, 'std': std}, args.save_model.replace('MP', 'statistics'))
+        torch.save({'mean': mean, 'std': std}, 'statistics'+args.save_model)
     # plot and save
-    plotCurves(train_MSE, test_MSE, EPOCH)
+    plotCurves(train_MSE, train_rank, test_MSE, EPOCH, args.save_model)
 
     # save some prediction result
     savePrediction(data, prediction, std, mean)
 
     if args.debug:
         printInstance(data, prediction, std, mean)
+
 
 if __name__ == '__main__':
     main()
