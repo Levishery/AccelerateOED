@@ -1,5 +1,5 @@
 import time
-from MOCU import *
+from N7ForShare.MOCU import *
 import random
 import torch
 import numpy as np

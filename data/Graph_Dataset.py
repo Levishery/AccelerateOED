@@ -5,6 +5,25 @@ import random
 from torch_geometric.data import Data
 
 
+fileObject = open('data/data_7_oscillators.json', 'r')
+data2 = fileObject.read()
+data2 = demjson.decode(data2)
+
+fileObject = open('data/data_7_oscillators_1.json', 'r')
+data1 = fileObject.read()
+data1 = demjson.decode(data1)
+
+fileObject = open('data/data_7_oscillators_2.json', 'r')
+data3 = fileObject.read()
+data3 = demjson.decode(data3)
+
+fileObject = open('data_7_oscillators_5.json', 'r')
+data4 = fileObject.read()
+data4 = demjson.decode(data4)
+
+data = data1 + data2 + data3 + data4
+
+random.shuffle(data)
 
 def getEdgeAtt(attr1, attr2, n):
     edge_attr = torch.zeros([2, n * (n - 1)])
@@ -17,28 +36,6 @@ def getEdgeAtt(attr1, attr2, n):
                 k = k + 1
     return edge_attr
 
-# fileObject = open('data_5_oscillators_45000.json', 'r')
-# data_ = fileObject.read()
-# data_ = demjson.decode(data_)
-# fileObject = open('data_5_oscillators3.json', 'r')
-# data_1 = fileObject.read()
-# data_1 = demjson.decode(data_1)
-# fileObject = open('data_5_oscillators4.json', 'r')
-# data_2 = fileObject.read()
-# data_2 = demjson.decode(data_2)
-# data = data_+data_1+data_2
-
-fileObject = open('data_5_oscillators3.json', 'r')
-data2 = fileObject.read()
-data2 = demjson.decode(data2)
-
-fileObject = open('data/data_5_oscillators.json', 'r')
-data1 = fileObject.read()
-data1 = demjson.decode(data1)
-
-data = data1+data2
-random.shuffle(data)
-
 data_list = []
 # fully connected
 
@@ -49,6 +46,16 @@ for i in range(len(data)):
     x = torch.from_numpy(x.astype(np.float32))
     n = x.size()[0]
     x = x.unsqueeze(dim=1)
+
+    # data.x: Node feature matrix with shape[num_nodes, num_node_features]
+    #
+    # data.edge_index: Graph connectivity in COO format with shape[2, num_edges] and type torch.long
+    #
+    # data.edge_attr: Edge feature matrix with shape[num_edges, num_edge_features]
+    #
+    # data.y: Target to train against(may have arbitrary shape), e.g., node - level targets of shape[num_nodes, *]
+    # or graph - level targets of shape[1, *]
+    # Normalize targets to mean = 0 and std = 1.
 
     edge_index = getEdgeAtt(np.tile(np.asarray([i for i in range(n)]), (n, 1)),
                             np.tile(np.asarray([[i] for i in range(n)]), (1, n)), n).long()
@@ -61,4 +68,4 @@ for i in range(len(data)):
     data_ = Data(x=x, edge_index=edge_index, edge_attr=edge_attr.t(), y=y)
     data_list.append(data_)
 
-torch.save(data_list, 'TensorDataSet_95000_mixed.pth'.replace('Tensor', 'Graph'))
+torch.save(data_list, 'TensorDataSet_20000_7.pth'.replace('Tensor', 'Graph'))

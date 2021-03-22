@@ -31,7 +31,7 @@ h = 1.0 / 160.0
 # Time steps
 M = int(T / h)
 w = np.zeros(N)
-step = 7000
+step = 10000
 data_ = []
 for s in range(step):
     data_dic = {}
@@ -50,15 +50,15 @@ for s in range(step):
 
     uncertainty = 0.6 * random.random()
     for i in range(N):
-        if random.random() < 0.5: # case 1
-            mul_ = 0.35
-        else:
-            mul_ = 1.2
+        # if random.random() < 0.5: # case 1
+        #     mul_ = 0.35
+        # else:
+        #     mul_ = 1.2
         for j in range(i + 1, N):
-            # if random.random() < 0.5: # case 2
-            #     mul_ = 0.35
-            # else:
-            #     mul_ = 1.2
+            if random.random() < 0.5: # case 2
+                mul_ = 0.35
+            else:
+                mul_ = 1.2
             mul = mul_ * random.random()
             f_inv = np.abs(w[i] - w[j]) / 2.0
             a_upper_bound[i, j] = f_inv * (1 + uncertainty) * mul
@@ -115,6 +115,6 @@ for s in range(step):
 
 print(type(data_))
 jsObj = json.dumps(data_)
-fileObject = open('data_7_oscillators_1.json', 'w')
+fileObject = open('../Dataset/7o_type2.json', 'w')
 fileObject.write(jsObj)
 fileObject.close()

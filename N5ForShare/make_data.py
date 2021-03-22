@@ -2,11 +2,8 @@ import sys
 
 sys.path.append("./src")
 
-from find_MOCU_seq import *
-from find_Entropy_seq import *
-from find_Rand_seq import *
 from MOCU import *
-from main_module_ij_couple import *
+from mocu_comp import *
 import time
 import json
 
@@ -20,12 +17,9 @@ print("\n")
 print("Start ticking")
 tt = time.time()
 
-it_idx = 1
-update_cnt = 10
 # Number of equations
-# N = 5
-N = 9
-K_max = 20000  # 5000
+N = 5
+K_max = 20480  # 5000
 
 # Final Time
 T = 4.0
@@ -36,7 +30,7 @@ h = 1.0 / 160.0
 # Time steps
 M = int(T / h)
 w = np.zeros(N)
-step = 20000
+step = 50000
 data_ = []
 for s in range(step):
     data_dic = {}
@@ -56,9 +50,9 @@ for s in range(step):
     uncertainty = 0.3 * random.random()
     for i in range(N):
         if random.random() < 0.5:
-            mul_ = 0.25
+            mul_ = 0.6
         else:
-            mul_ = 1.2
+            mul_ = 1.1
         for j in range(i + 1, N):
             # if random.random() < 0.5:
             #     mul_ = 0.6
@@ -101,12 +95,12 @@ for s in range(step):
     if init_sync_check == 1:
         print('It is already sync system with the lower bound!!!!')
 
-    MOCU_val1 = MOCU(K_max, w, N, h, M, T, a_lower_bound_update, a_upper_bound_update)
+    MOCU_val1 = MOCU(K_max, w, N, h, M, T, a_lower_bound_update, a_upper_bound_update, 0)
 
     print('MOCU value 1: %f' % MOCU_val1)
     data_dic['MOCU1'] =  MOCU_val1
 
-    MOCU_val2 = MOCU(K_max, w, N, h, M, T, a_lower_bound_update, a_upper_bound_update)
+    MOCU_val2 = MOCU(K_max, w, N, h, M, T, a_lower_bound_update, a_upper_bound_update, 0)
 
     print('MOCU value 2: %f' % MOCU_val2)
     data_dic['MOCU2'] =  MOCU_val2
@@ -114,12 +108,13 @@ for s in range(step):
     data_dic['mean_MOCU'] = (MOCU_val2 + MOCU_val1)/2
 
     data_.append(data_dic)
+    print(s)
 
 # data_.tolist()
 
 print(type(data_))
 jsObj = json.dumps(data_)
 
-fileObject = open('data_5_oscillators3.json', 'w')
+fileObject = open('../Dataset/5o_type1.json', 'w')
 fileObject.write(jsObj)
 fileObject.close()

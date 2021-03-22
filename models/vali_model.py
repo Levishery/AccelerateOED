@@ -1,4 +1,4 @@
-from MOCU import *
+from N7ForShare.MOCU import *
 import random
 import torch
 import numpy as np
@@ -95,7 +95,7 @@ if __name__ == '__main__':
         if N == 5:
             model.load_state_dict(torch.load('../model/MP_9and5_400.pth'))
         else:
-            model.load_state_dict(torch.load('../5_data/Constrained_l2_1.pth'))
+            model.load_state_dict(torch.load('../models/Constrained_l2_1.pth'))
         model.eval()
 
     for s in tqdm(range(step)):
