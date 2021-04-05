@@ -30,6 +30,7 @@ sudo apt-get install build-essential python-dev python-setuptools libboost-pytho
 pip install pycuda
 
 pip install pandas
+pip  install openpyxl
  ```
 It's better to test PyCUDA before the following steps.  
 Now you are able to run sampling-RK,the original method to compute MOCU.
@@ -50,4 +51,29 @@ pip install torch-geometric
 ```
 
 
- 
+### Creat Dataset
+use make_data.py in the forlder for N=5 and N=7
+The data distribution is in 
+Use data/Graph_dataset.py to combine and convert the data to class torch_geometric.data, and seperate training and test sets.
+
+### Training
+We used a two-stage training, where the first stage use dataset contains only 5-oscillator system, while the second stage use both. The target MOCU values arenormalized to mean 0 and variance 1.We use the Adam optimizer with learning rate 0.001 and batch size 128 intraining for 400 epoch. The weight for ranking constrain loss is set to 0.0001.
+```bash
+cd model
+python MP_train.py  --name cons5 --data_path ../Dataset/70000_5o_train.pth --EPOCH 400 --Constrain_weight 0.0001
+python MP_train.py  --pretrain cons5 --name consmixed --data_path ../Dataset/56000_mixed.pth --EPOCH 400 --Constrain_weight 0.0001
+```
+The models and loss curves will be saved in Experiment/name
+
+### Test
+```bash
+# MSE on testset
+python MP_train.py  --pretrain consmixed --test_only --data_path ../Dataset/2000_7o_test.pth
+# Ability to preserve Ranking. Remember to change the model path and data path.
+python vali_model.py
+# OED simulation. Remember to change the model path in findMPSequence.py.
+mkdir results
+cd N5ForShare/N7ForShare
+python runMainForPerformanceMeasure.py
+# The mean mocu matrrix will be saved in results/mean_MOCU.txt
+```
