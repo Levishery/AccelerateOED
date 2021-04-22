@@ -61,9 +61,9 @@ if __name__ == '__main__':
     aInitialUpper[1, 3:5] = aInitialUpper[1, 3:5] * 0.45
     aInitialLower[1, 3:5] = aInitialLower[1, 3:5] * 0.45
 
-    np.savetxt('./results/paramNaturalFrequencies.txt', w, fmt='%.64e')
-    np.savetxt('./results/paramInitialUpper.txt', aInitialUpper, fmt='%.64e')
-    np.savetxt('./results/paramInitialLower.txt', aInitialLower, fmt='%.64e')
+    np.savetxt('../results/paramNaturalFrequencies.txt', w, fmt='%.64e')
+    np.savetxt('../results/paramInitialUpper.txt', aInitialUpper, fmt='%.64e')
+    np.savetxt('../results/paramInitialLower.txt', aInitialLower, fmt='%.64e')
 
     for i in range(N):
         for j in range(i + 1, N):
@@ -138,8 +138,8 @@ if __name__ == '__main__':
         # else:
         #     print('                     Favorable system has been found')
 
-        np.savetxt('./results/paramCouplingStrength' + str(numberOfVaildSimulations) + '.txt', a, fmt='%.64e')
-        test = np.loadtxt('./results/paramCouplingStrength' + str(numberOfVaildSimulations) + '.txt')
+        np.savetxt('../results/paramCouplingStrength' + str(numberOfVaildSimulations) + '.txt', a, fmt='%.64e')
+        test = np.loadtxt('../results/paramCouplingStrength' + str(numberOfVaildSimulations) + '.txt')
 
         for indexMethod in range(len(listMethods)):
             timeMOCU = time.time()
@@ -193,9 +193,9 @@ if __name__ == '__main__':
                             timeComplexity, MOCUInitial, K_max, w, N, deltaT, MVirtual, MReal, TVirtual, TReal,
                             aLowerUpdated, aUpperUpdated, it_idx, update_cnt)
 
-            outMOCUFile = open('./results/' + listMethods[indexMethod] + '_MOCU.txt', 'a')
-            outTimeFile = open('./results/' + listMethods[indexMethod] + '_timeComplexity.txt', 'a')
-            outSequenceFile = open('./results/' + listMethods[indexMethod] + '_sequence.txt', 'a')
+            outMOCUFile = open('../results/' + listMethods[indexMethod] + '_MOCU.txt', 'a')
+            outTimeFile = open('../results/' + listMethods[indexMethod] + '_timeComplexity.txt', 'a')
+            outSequenceFile = open('../results/' + listMethods[indexMethod] + '_sequence.txt', 'a')
             np.savetxt(outMOCUFile, MOCUCurve.reshape(1, MOCUCurve.shape[0]), delimiter="\t")
             np.savetxt(outTimeFile, timeComplexity.reshape(1, timeComplexity.shape[0]), delimiter="\t")
             np.savetxt(outSequenceFile, experimentSequence, delimiter="\t")
@@ -206,5 +206,5 @@ if __name__ == '__main__':
         numberOfVaildSimulations += 1
     mean_MOCU_matrix = np.mean(save_MOCU_matrix, axis=2)
     print(mean_MOCU_matrix)
-    outMOCUFile = open('./results/' + 'mean_MOCU.txt', 'a')
+    outMOCUFile = open('../results/' + 'mean_MOCU.txt', 'a')
     np.savetxt(outMOCUFile, mean_MOCU_matrix, delimiter="\t")

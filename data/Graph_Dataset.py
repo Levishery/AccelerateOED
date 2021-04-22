@@ -5,23 +5,23 @@ import random
 from torch_geometric.data import Data
 
 
-fileObject = open('data/data_7_oscillators.json', 'r')
+fileObject = open('../Dataset/5o_type1.json', 'r')
 data2 = fileObject.read()
 data2 = demjson.decode(data2)
 
-fileObject = open('data/data_7_oscillators_1.json', 'r')
+fileObject = open('../Dataset/5o_type2.json', 'r')
 data1 = fileObject.read()
 data1 = demjson.decode(data1)
 
-fileObject = open('data/data_7_oscillators_2.json', 'r')
-data3 = fileObject.read()
-data3 = demjson.decode(data3)
+# fileObject = open('../Dataset/7o_type1.json', 'r')
+# data2 = fileObject.read()
+# data2 = demjson.decode(data2)
+#
+# fileObject = open('../Dataset/7o_type2.json', 'r')
+# data1 = fileObject.read()
+# data1 = demjson.decode(data1)
 
-fileObject = open('data_7_oscillators_5.json', 'r')
-data4 = fileObject.read()
-data4 = demjson.decode(data4)
-
-data = data1 + data2 + data3 + data4
+data = data1 + data2
 
 random.shuffle(data)
 
@@ -68,4 +68,14 @@ for i in range(len(data)):
     data_ = Data(x=x, edge_index=edge_index, edge_attr=edge_attr.t(), y=y)
     data_list.append(data_)
 
-torch.save(data_list, 'TensorDataSet_20000_7.pth'.replace('Tensor', 'Graph'))
+# train = data_list[0:28000]
+# test = data_list[28000:30000]
+#
+# torch.save(train, '../Dataset/28000_7o_train.pth')
+# torch.save(test, '../Dataset/2000_7o_test.pth')
+
+train = data_list[0:70000]
+test = data_list[70000:75000]
+
+torch.save(train, '../Dataset/70000_5o_train.pth')
+torch.save(test, '../Dataset/5000_5o_test.pth')

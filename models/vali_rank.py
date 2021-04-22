@@ -20,6 +20,16 @@ def getEdgeAtt(N, attr1, attr2):
                 k = k + 1
     return edge_attr
 
+def EdgeAtt2matrix(Attr, N):
+    m = torch.zeros([N, N])
+    k = 0
+    for i in range(N):
+        for j in range(N):
+            if i != j:
+                m[i, j] = Attr[k]
+                k = k + 1
+    return m
+
 
 class Net(torch.nn.Module):
     def __init__(self):
@@ -81,65 +91,74 @@ if __name__ == '__main__':
     M = int(T / h)
     # get random data
     # N = 5
-    is_ODE = 0
+    is_ODE = 1
     N = 7
     up_flag = 0
     down_flag = 0
-    step = 5000
     data_ = []
     w = np.zeros(N)
     # load model
     if not is_ODE:
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         model = Net().cuda()
-        if N == 5:
-            model.load_state_dict(torch.load('../model/MP_9and5_400.pth'))
-        else:
-            model.load_state_dict(torch.load('../models/Constrained_l2_1.pth'))
+        # model.load_state_dict(torch.load('../Experiment/noconsmixed_/model.pth'))
+        model.load_state_dict(torch.load('../Experiment/consmixed_/model.pth'))
         model.eval()
 
-    for s in tqdm(range(step)):
+    if N == 7:
+        data_list = torch.load('../Dataset/2000_7o_test.pth')
+    else:
+        data_list = torch.load('../Dataset/3000_5o_test.pth')
+    step = len(data_list)
+    for d in tqdm(data_list):
         data_dic = {}
-        for i in range(N):
-            if N == 5:
-                w[i] = 12 * (0.5 - random.random())
-            else:
-                w[i] = 20 * (0.5 - random.random())
-
-        data_dic['w'] = w.tolist()
-
-        a_upper_bound = np.zeros((N, N))
-        a_lower_bound = np.zeros((N, N))
-        a_lower_bound_update = np.zeros((N, N))
-        a_upper_bound_update = np.zeros((N, N))
-        a = np.zeros((N, N))
-
-        if N == 5:
-            uncertainty = 0.3 * random.random()
-        else:
-            uncertainty = 0.6 * random.random()
-        for i in range(N):
-            if N == 5:
-                if random.random() < 0.5:
-                    mul_ = 0.6
-                else:
-                    mul_ = 1.1
-            else:
-                if random.random() < 0.5:  # case 1
-                    mul_ = 0.35
-                else:
-                    mul_ = 1.2
-            for j in range(i + 1, N):
-                # if random.random() < 0.5: # case 2
-                #     mul_ = 0.35
-                # else:
-                #     mul_ = 1.2
-                mul = mul_ * random.random()
-                f_inv = np.abs(w[i] - w[j]) / 2.0
-                a_upper_bound[i, j] = f_inv * (1 + uncertainty) * mul
-                a_lower_bound[i, j] = f_inv * (1 - uncertainty) * mul
-                a_upper_bound[j, i] = a_upper_bound[i, j]
-                a_lower_bound[j, i] = a_lower_bound[i, j]
+        # data = DataLoader([d], batch_size=128, shuffle=False)
+        # for x in data:
+        #     x.to(device)
+        #     pre = model(x)
+        w = np.asarray(d.x.squeeze())
+        a_upper_bound = np.asarray(EdgeAtt2matrix(d.edge_attr[:, 1], N))
+        a_lower_bound = np.asarray(EdgeAtt2matrix(d.edge_attr[:, 0], N))
+        # for i in range(N):
+        #     if N == 5:
+        #         w[i] = 12 * (0.5 - random.random())
+        #     else:
+        #         w[i] = 20 * (0.5 - random.random())
+        #
+        # data_dic['w'] = w.tolist()
+        #
+        # a_upper_bound = np.zeros((N, N))
+        # a_lower_bound = np.zeros((N, N))
+        # a_lower_bound_update = np.zeros((N, N))
+        # a_upper_bound_update = np.zeros((N, N))
+        # a = np.zeros((N, N))
+        #
+        # if N == 5:
+        #     uncertainty = 0.3 * random.random()
+        # else:
+        #     uncertainty = 0.6 * random.random()
+        # for i in range(N):
+        #     if N == 5:
+        #         if random.random() < 0.5:
+        #             mul_ = 0.6
+        #         else:
+        #             mul_ = 1.1
+        #     else:
+        #         if random.random() < 0.5:  # case 1
+        #             mul_ = 0.35
+        #         else:
+        #             mul_ = 1.2
+        #     for j in range(i + 1, N):
+        #         # if random.random() < 0.5: # case 2
+        #         #     mul_ = 0.35
+        #         # else:
+        #         #     mul_ = 1.2
+        #         mul = mul_ * random.random()
+        #         f_inv = np.abs(w[i] - w[j]) / 2.0
+        #         a_upper_bound[i, j] = f_inv * (1 + uncertainty) * mul
+        #         a_lower_bound[i, j] = f_inv * (1 - uncertainty) * mul
+        #         a_upper_bound[j, i] = a_upper_bound[i, j]
+        #         a_lower_bound[j, i] = a_lower_bound[i, j]
         if is_ODE:
             pre = MOCU(K_max, w, N, h, M, T, a_lower_bound.copy(), a_upper_bound.copy(), 0)
         else:

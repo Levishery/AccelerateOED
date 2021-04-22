@@ -9,6 +9,7 @@ import copy
 
 import argparse
 import sys
+import os
 
 
 class Net(torch.nn.Module):
@@ -61,13 +62,13 @@ def getArg():
                         help='file name to save the model')
     parser.add_argument('--data_path', default='',
                         help='')
-    parser.add_argument('--EPOCH', default=200, type=int,
+    parser.add_argument('--EPOCH', default=400, type=int,
                         help='EPOCH to train')
     parser.add_argument('--test_only', action='store_true',
                         help='output test result only')
     parser.add_argument('--debug', action='store_true',
                         help='print debug information')
-    parser.add_argument('--Constrain_weight', default=0.001, type=float,
+    parser.add_argument('--Constrain_weight', default=0.0001, type=float,
                         help='rank loss weight')
 
     args = parser.parse_args()
@@ -90,8 +91,8 @@ def loadData(test_only, data_path, pretrain, name):
         test_loader = DataLoader(data_test, batch_size=128, shuffle=False)
 
     else:
-        mean = np.asarray([d.y for d in data_list]).mean()
-        std = np.asarray([d.y for d in data_list]).std()
+        mean = np.asarray([d.y[0][0] for d in data_list]).mean()
+        std = np.asarray([d.y[0][0] for d in data_list]).std()
         for d in data_list:
             d.y = (d.y - mean) / std
         data_train = data_list[0:int(0.96 * len(data_list))]
@@ -110,13 +111,15 @@ def main():
     EPOCH = args.EPOCH if not args.test_only else 1
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
+    if not os.path.exists('../Experiment/' + args.name):
+        os.makedirs('../Experiment/' + args.name)
     train_loader, test_loader, [std, mean] = loadData(args.test_only, args.data_path, args.pretrain, args.name)
 
     print('Making Model...')
     with torch.backends.cudnn.flags(enabled=False):
         model = Net().cuda()
         if args.pretrain != '.':
-            model.load_state_dict(torch.load(args.pretrain))
+            model.load_state_dict(torch.load('../Experiment/' + args.pretrain + '/model.pth'))
 
         optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min',

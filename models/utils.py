@@ -16,7 +16,7 @@ def plotCurves(train_MSE, train_rank, test_MSE, EPOCH, name):
     plt.ylabel('Mean Square Error')
     plt.legend()
     name = name.split('.')[0]
-    plt.savefig( '../Experiment/' + name + 'curve.png')
+    plt.savefig( '../Experiment/' + name + '/curve.png')
 
     plt.clf()
 
@@ -26,7 +26,7 @@ def plotCurves(train_MSE, train_rank, test_MSE, EPOCH, name):
     plt.xlabel('epoch')
     plt.ylabel('Mean Square Error')
     plt.legend()
-    plt.savefig('../Experiment/' + name + 'curve2.png')
+    plt.savefig('../Experiment/' + name + '/curve2.png')
 
 
 def savePrediction(data, prediction, std, mean, name):
@@ -38,7 +38,7 @@ def savePrediction(data, prediction, std, mean, name):
 
     data = pd.DataFrame(result)
 
-    writer = pd.ExcelWriter('../Experiment/' + name + 'Prediction.xlsx')  # 写入Excel文件
+    writer = pd.ExcelWriter('../Experiment/' + name + '/Prediction.xlsx')  # 写入Excel文件
     data.to_excel(writer, 'page_1', float_format='%.9f')  # ‘page_1’是写入excel的sheet名
     writer.save()
 
