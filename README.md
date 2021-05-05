@@ -53,7 +53,7 @@ pip install torch-geometric
 
 ### Creat Dataset
 use make_data.py in the forlder for N=5 and N=7
-The data distribution is in 
+See make_data.py for data distribution.
 Use data/Graph_dataset.py to combine and convert the data to class torch_geometric.data, and seperate training and test sets.
 
 ### Training
@@ -77,3 +77,4 @@ cd N5ForShare/N7ForShare
 python runMainForPerformanceMeasure.py
 # The mean mocu matrrix will be saved in results/mean_MOCU.txt
 ```
+In the OED simulation experiment, I created a child process to run the neural network. Because the cuda context initialed by pycuda will be destroyed if pytorch initial it again, the child process force them to initilize their own CUDA context. There might be a more elegent solution.
