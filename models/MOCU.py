@@ -13,7 +13,7 @@ mod = SourceModule("""
 // Well, yes, I am lazy...
 #include <stdio.h>
 
-#define N_global 10
+#define N_global 8
 #define NUMBER_FEATURES (N_global * N_global)
 
 __device__ int mocu_comp(double *w, double h, int N, int M, double* a)

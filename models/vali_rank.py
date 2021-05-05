@@ -7,7 +7,6 @@ from torch_geometric.nn import NNConv, Set2Set
 import torch.nn.functional as F
 from torch_geometric.data import Data, DataLoader
 from tqdm import tqdm
-import torch.multiprocessing as mp
 
 def getEdgeAtt(N, attr1, attr2):
     edge_attr = torch.zeros([2, N * (N - 1)])
@@ -160,7 +159,8 @@ if __name__ == '__main__':
         #         a_upper_bound[j, i] = a_upper_bound[i, j]
         #         a_lower_bound[j, i] = a_lower_bound[i, j]
         if is_ODE:
-            pre = MOCU(K_max, w, N, h, M, T, a_lower_bound.copy(), a_upper_bound.copy(), 0)
+            pre = (MOCU(K_max, w, N, h, M, T, a_lower_bound.copy(), a_upper_bound.copy(), 0) +
+                   MOCU(K_max, w, N, h, M, T, a_lower_bound.copy(), a_upper_bound.copy(), 0))/2
         else:
             pre = prediction(N, w, a_lower_bound, a_upper_bound, model)
         a_lower_bound_update = a_lower_bound.copy()
@@ -173,7 +173,8 @@ if __name__ == '__main__':
         a_upper_bound_update[i, j] = (a_lower_bound[i, j] + a_upper_bound[i, j])/2
         a_upper_bound_update[j, i] = a_upper_bound_update[i, j]
         if is_ODE:
-            pre3 = MOCU(K_max, w, N, h, M, T, a_lower_bound_update, a_upper_bound_update, 0)
+            pre3 = (MOCU(K_max, w, N, h, M, T, a_lower_bound_update, a_upper_bound_update, 0) +
+                    MOCU(K_max, w, N, h, M, T, a_lower_bound_update, a_upper_bound_update, 0))/2
         else:
             pre3 = prediction(N, w, a_lower_bound_update, a_upper_bound_update, model)
         if pre3<pre:
@@ -188,7 +189,8 @@ if __name__ == '__main__':
         a_lower_bound_update[i, j] = (a_lower_bound[i, j] + a_upper_bound[i, j]) / 2
         a_lower_bound_update[j, i] = a_lower_bound_update[i, j]
         if is_ODE:
-            pre2 = MOCU(K_max, w, N, h, M, T, a_lower_bound_update, a_upper_bound_update, 0)
+            pre2 = (MOCU(K_max, w, N, h, M, T, a_lower_bound_update, a_upper_bound_update, 0) +
+                    MOCU(K_max, w, N, h, M, T, a_lower_bound_update, a_upper_bound_update, 0))/2
         else:
             pre2 = prediction(N, w, a_lower_bound_update, a_upper_bound_update, model)
         if pre2 < pre:
