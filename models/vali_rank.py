@@ -1,4 +1,4 @@
-from N7ForShare.MOCU import *
+from MOCU import *
 import random
 import torch
 import numpy as np
@@ -18,6 +18,7 @@ def getEdgeAtt(N, attr1, attr2):
                 edge_attr[1, k] = attr2[i, j]
                 k = k + 1
     return edge_attr
+
 
 def EdgeAtt2matrix(Attr, N):
     m = torch.zeros([N, N])
@@ -109,6 +110,7 @@ if __name__ == '__main__':
     else:
         data_list = torch.load('../Dataset/3000_5o_test.pth')
     step = len(data_list)
+    # data_list = data_list[0:10]
     for d in tqdm(data_list):
         data_dic = {}
         # data = DataLoader([d], batch_size=128, shuffle=False)
@@ -116,8 +118,8 @@ if __name__ == '__main__':
         #     x.to(device)
         #     pre = model(x)
         w = np.asarray(d.x.squeeze())
-        a_upper_bound = np.asarray(EdgeAtt2matrix(d.edge_attr[:, 1], N))
-        a_lower_bound = np.asarray(EdgeAtt2matrix(d.edge_attr[:, 0], N))
+        a_upper_bound = np.asarray(EdgeAtt2matrix(d.edge_attr[:, 1], N), dtype=np.float64)
+        a_lower_bound = np.asarray(EdgeAtt2matrix(d.edge_attr[:, 0], N), dtype=np.float64)
         # for i in range(N):
         #     if N == 5:
         #         w[i] = 12 * (0.5 - random.random())
@@ -159,8 +161,8 @@ if __name__ == '__main__':
         #         a_upper_bound[j, i] = a_upper_bound[i, j]
         #         a_lower_bound[j, i] = a_lower_bound[i, j]
         if is_ODE:
-            pre = (MOCU(K_max, w, N, h, M, T, a_lower_bound.copy(), a_upper_bound.copy(), 0) +
-                   MOCU(K_max, w, N, h, M, T, a_lower_bound.copy(), a_upper_bound.copy(), 0))/2
+            pre = (MOCU(K_max, w, N, h, M, T, a_lower_bound, a_upper_bound, 0) +
+            MOCU(K_max, w, N, h, M, T, a_lower_bound.copy(), a_upper_bound.copy(), 0))/2
         else:
             pre = prediction(N, w, a_lower_bound, a_upper_bound, model)
         a_lower_bound_update = a_lower_bound.copy()
