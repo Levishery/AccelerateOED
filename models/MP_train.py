@@ -70,6 +70,8 @@ def getArg():
                         help='print debug information')
     parser.add_argument('--Constrain_weight', default=0.0001, type=float,
                         help='rank loss weight')
+    parser.add_argument('--multiple_model', action='store_true',
+                        help='use multiple models for test')
 
     args = parser.parse_args()
     return args
@@ -81,6 +83,8 @@ def loadData(test_only, data_path, pretrain, name):
     data_list = torch.load(data_path)
 
     if test_only:
+        model_paths = pretrain.split('+')
+        pretrain = model_paths[0]
         statistics = torch.load('../Experiment/' + pretrain + '/statistics.pth')
         mean = statistics['mean']
         std = statistics['std']
@@ -117,9 +121,17 @@ def main():
 
     print('Making Model...')
     with torch.backends.cudnn.flags(enabled=False):
-        model = Net().cuda()
         if args.pretrain != '.':
-            model.load_state_dict(torch.load('../Experiment/' + args.pretrain + '/model.pth'))
+            if args.multiple_model:
+                model_paths = args.pretrain.split('+')
+                models = []
+                for model_path in model_paths:
+                    model = Net().cuda()
+                    model.load_state_dict(torch.load('../Experiment/' + model_path + '/model.pth'))
+                    models.append(model)
+            else:
+                model = Net().cuda()
+                model.load_state_dict(torch.load('../Experiment/' + args.pretrain + '/model.pth'))
 
         optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min',
@@ -159,7 +171,14 @@ def main():
             error = 0
             for data in test_loader:
                 data = data.to(device)
-                prediction = model(data).unsqueeze(dim=1)
+                if args.multiple_model:
+                    predictions = 0
+                    for model in models:
+                        model.eval()
+                        predictions = predictions + model(data).unsqueeze(dim=1)
+                    prediction = predictions/len(models)
+                else:
+                    prediction = model(data).unsqueeze(dim=1)
                 error += (prediction * std - data.y * std).square().sum().item()  # MSE
             loss = error / len(test_loader.dataset)
             print('epoch %d test MSE: %f' % (epoch, loss))
