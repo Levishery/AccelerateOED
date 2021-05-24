@@ -38,6 +38,11 @@ Now you are able to run sampling-RK,the original method to compute MOCU.
 Install PyTorch and PyTorch Geometric(https://pytorch.org/  https://pytorch-geometric.readthedocs.io/en/latest/notes/installation.html)  
 for training and testing message passing model
 
+First check your CUDA version with
+```bash
+nvcc --version
+```
+If it's 10.2, please use the following command without change. Otherwise please change "10.2" or "cu102" to your CUDA version(like "10.1" or "cu101").
 ```bash
 conda install pytorch torchvision torchaudio cudatoolkit=10.2 -c pytorch
 # I went through a numpy version comflict here, since pip installed numpy=1.20.1 while installing pycuda, 
