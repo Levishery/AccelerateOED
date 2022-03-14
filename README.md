@@ -1,5 +1,5 @@
 # AccelerateOED
-code for paper "A data-driven approach to accelerating Optimal Experimental Design for Uncertain Kuramoto model"
+code for paper "Neural Message Passing for Objective-Based Uncertainty Quantification and Optimal Experimental Design"
 
 ## Environment
 Python 3.8.8  
